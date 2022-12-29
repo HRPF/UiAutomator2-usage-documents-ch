@@ -1,6 +1,6 @@
 # UiAutomator2 入门
 
-## 关于
+## 一、关于
 
 [UiAutomator](https://developer.android.com/training/testing/ui-automator.html)是Google提供的用来做安卓自动化测试的一个Java库，基于Accessibility服务。功能很强，可以对第三方App进行测试，获取屏幕上任意一个APP的任意一个控件属性，并对其进行任意操作，但有两个缺点：
 
@@ -29,7 +29,7 @@ UiAutomator2库从`xiaocong/uiautomator`进化升级而来，对原有的库的b
 
 > 库 ~~<https://github.com/NeteaseGame/ATX>~~ 已不再维护  
 
-## 安装
+## 二、安装
 
 ### Requirements
 
@@ -102,13 +102,13 @@ screenOn': True, 'sdkInt': 27, 'naturalOrientation': True}
 
 
 
-## 使用方法详解
+## 三、使用方法详解
 
 > UiAutomator2可搭配使用Python unittest单元测试框架使用，使用方法可参考[unittest --- 单元测试框架 — Python 3.11.1 文档](https://docs.python.org/zh-cn/3/library/unittest.html)
 
 
 
-### 与设备连接
+### 3.1 与设备连接
 
 1. USB线缆
 
@@ -150,11 +150,11 @@ screenOn': True, 'sdkInt': 27, 'naturalOrientation': True}
 
 
 
-### 熟悉Android常用UI控件
+### 3.2 熟悉Android常用UI控件
 
 
 
-### 通过坐标的手势交互
+### 3.3 通过坐标的手势交互
 
 | 手势         | 函数调用           | 必选参数                                 | 可选参数   | 示例                                                     | 补充                                  |
 | ------------ | ------------------ | ---------------------------------------- | ---------- | -------------------------------------------------------- | ------------------------------------- |
@@ -171,7 +171,7 @@ screenOn': True, 'sdkInt': 27, 'naturalOrientation': True}
 
 
 
-### 控件定位
+### 3.4 控件定位
 
 #### 支持的选择器
 
@@ -223,7 +223,7 @@ ui2支持 android 中 UiSelector 类中的所有定位方式，详细可以在�
 
 
 
-### 高级控件定位
+### 3.5 高级控件定位
 
 #### 子元素定位
 
@@ -352,7 +352,7 @@ For example: 其中一个节点的内容
 
 xpath定位和使用方法
 
-有些属性的名字有修改需要注意
+> *有些属性的名字有修改需要注意
 
 ```
 description -> content-desc
@@ -384,7 +384,7 @@ for elem in d.xpath("//android.widget.TextView").all():
 
 
 
-### 控件交互
+### 3.6 控件交互
 
 #### 获取控件信息
 
@@ -404,11 +404,124 @@ for elem in d.xpath("//android.widget.TextView").all():
 
 #### 点击控件
 
+```d(text="Settings").click()```
+
+| 方法           | 参数(方括号表示可选) | 返回值 | 示例                                                   | 解释                                                         |
+| -------------- | -------------------- | ------ | ------------------------------------------------------ | ------------------------------------------------------------ |
+| click()        | [timeout]            |        | `d(text="Settings").click(timeout=10)`                 | 在10秒内等待控件出现。默认为0秒                              |
+|                | [offset]             |        | `d(text="Settings").click(offset=(0.5, 0.5))`          | 参数值为二元组，表示点击的点在相对控件左上角的水平、垂直偏移值（百分比）。默认为控件中心点（0.5, 0.5） |
+|                |                      |        | `d(text="Settings").click(offset=(0, 1))`              | 点击Settings控件的右上角                                     |
+| click_exists() | [timeout]            |        | `d(text='Skip').click_exists(timeout=10.0)`            | 在10秒内存在时点击，默认超时0秒                              |
+| click_gone()   | [maxentry]           | bool   | `d(text="Skip").click_gone(maxretry=10, interval=1.0)` | 不断点击直到消失。maxentry为点击次数                         |
+|                | [interval]           |        |                                                        | interval为点击间隔                                           |
+| long_click()   | [duration]           |        | `d(text="Settings").long_click(duration=3)`            | 按下的时长                                                   |
+|                | [timeout]            |        | `d(text="Settings").long_click(timeout=3)`             | 等待控件出现的时长                                           |
+
 
 
 #### 控件的手势交互
 
+**拖拽**
+
+将Settings拖拽到屏幕上(x, y)点处，拖拽时长为0.5s:
+
+```python
+d(text="Settings").drag_to(x, y, duration=0.5)
+```
+
+将Settings拖拽到Clock的中点处，拖拽时长为0.25s：
+
+```python
+d(text="Settings").drag_to(text="Clock", duration=0.25)
+```
 
 
-### Watcher
+
+**滑动**
+
+滑动支持四个方向,即上下左右（right/left/up/down）。
+
+1 steps 大约是 5ms, 所以 20 steps 大约是 0.1s
+
+```python
+d(text="Settings").swipe("right")
+d(text="Settings").swipe("left", steps=10)
+```
+
+
+
+**Two-point gesture from one point to another**
+
+```python
+d(text="Settings").gesture((sx1, sy1), (sx2, sy2), (ex1, ey1), (ex2, ey2))
+```
+
+
+
+**双指放大/缩小**
+
+支持两种手势:
+
+- `In`, 缩小
+- `Out`, 放大
+
+```python
+# from edge to center.
+d(text="Settings").pinch_in(percent=100, steps=10)
+# from center to edge
+d(text="Settings").pinch_out()
+```
+
+> 注意：pinch操作从Android 4.3开始支持
+
+
+
+**等待，直到控件出现/消失**
+
+```python
+# wait until the ui object appears
+d(text="Settings").wait(timeout=3.0) # return bool
+# wait until the ui object gone
+d(text="Settings").wait_gone(timeout=1.0)
+```
+
+> 默认等待时间是20s，详情见**global settings**
+
+
+
+**滚动**
+
+Possible properties:
+
+- `horiz`(水平滚动) or `vert`(垂直滚动)
+- `forward` or `backward` or `toBeginning` or `toEnd`
+
+```python
+# fling forward(default) vertically(default) 
+d(scrollable=True).fling()
+# fling forward horizontally
+d(scrollable=True).fling.horiz.forward()
+# fling backward vertically
+d(scrollable=True).fling.vert.backward()
+# fling to beginning horizontally
+d(scrollable=True).fling.horiz.toBeginning(max_swipes=1000)
+# fling to end vertically
+d(scrollable=True).fling.toEnd()
+```
+
+
+
+### 3.7 物理按键 
+
+### 3.8 Watcher
+
+### 3.9 执行Shell命令
+
+### 3.10 获取设备信息
+
+### 3.11 控制屏幕
+
+### 3.12 获取Toast
+
+### 3.13 应用管理
 
