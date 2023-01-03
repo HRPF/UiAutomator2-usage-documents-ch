@@ -513,6 +513,55 @@ d(scrollable=True).fling.toEnd()
 
 ### 3.7 物理按键 
 
+#### 按键
+
+```python
+d.press("home")  # 按”主页“键
+d.press(0x07, 0x02)  # press keycode 0x07('0') with META ALT(0x02)
+```
+
+> 按键定义参见：[Android KeyEvnet](https://developer.android.com/reference/android/view/KeyEvent.html)
+
+目前可用的参数列表：
+
+- home
+
+- back
+
+- menu
+
+- recent (recent apps)
+
+  
+
+- left
+
+- right
+
+- up
+
+- down
+
+- center
+
+  
+
+- search
+
+- enter
+
+- delete ( or del)
+
+- volume_up
+
+- volume_down
+
+- volume_mute
+
+- camera
+
+- power
+
 ### 3.8 Watcher
 
 ### 3.9 执行Shell命令
@@ -521,7 +570,84 @@ d(scrollable=True).fling.toEnd()
 
 ### 3.11 控制屏幕
 
-### 3.12 获取Toast
+#### 灭屏/亮屏
 
-### 3.13 应用管理
+```python
+d.screen_on() # turn on the screen
+d.screen_off() # turn off the screen
+```
+
+
+
+#### 锁定/解锁
+
+```python
+x d.unlock()
+# This is equivalent to
+# 1. launch activity: com.github.uiautomator.ACTION_IDENTIFY
+# 2. press the "home" key
+```
+
+
+
+#### 获取屏幕状态
+
+```python
+d.info.get('screenOn')
+```
+
+> 仅在Android >= 4.4版本上支持
+
+
+
+#### 屏幕旋转
+
+设置旋转方向：
+
+The possible orientations:
+
+-   `natural` or `n`
+-   `left` or `l`
+-   `right` or `r`
+-   `upsidedown` or `u` (can not be set)
+
+```python
+# retrieve orientation. the output could be "natural" or "left" or "right" or "upsidedown"
+orientation = d.orientation
+
+# WARNING: not pass testing in my TT-M1
+# set orientation and freeze rotation.
+# notes: setting "upsidedown" requires Android>=4.3.
+d.set_orientation('l') # or "left"
+d.set_orientation("l") # or "left"
+d.set_orientation("r") # or "right"
+d.set_orientation("n") # or "natural"
+```
+
+
+
+控制自动旋转：
+
+```python
+# freeze rotation
+d.freeze_rotation()
+# un-freeze rotation
+d.freeze_rotation(False)
+```
+
+
+
+
+
+### 3.12 应用管理
+
+### 3.13 杂项
+
+#### 屏幕截图
+
+#### 屏幕录制
+
+#### 获取Toast
+
+#### 获取UI hierarchy
 
