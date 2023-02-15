@@ -80,11 +80,11 @@ screenOn': True, 'sdkInt': 27, 'naturalOrientation': True}
 
 - uiautomatorviewer
 
-  这是Android SDK自带的工具，用于获取AndroidUI中的控件属性。在使用UiAutomator时，由于安卓端的uiautomator是独占资源，所以两者无法同时使用，推荐使用下面的工具
+  这是Android SDK自带的工具，用于获取AndroidUI中的控件属性。在使用UiAutomator时，由于安卓端的uiautomator服务是独占资源，所以两者无法同时使用，开发时推荐使用weditor工具
 
 - weditor
 
-  基于Python，使用pip安装，可与UiAutomator更好融合。
+  基于Python，使用pip安装，与UiAutomator兼容性更佳，且可同时进行UiAutomator2代码调试。
 
   安装方法：
 
@@ -94,17 +94,19 @@ screenOn': True, 'sdkInt': 27, 'naturalOrientation': True}
 
   安装好之后，就可以在命令行运行`weditor --help` 确认是否安装成功了。
 
-  > Windows系统可以使用命令在桌面创建一个快捷方式 `weditor --shortcut`，如果使用的是conda环境则快捷方式无效
+  > Windows系统可以使用命令在桌面创建一个快捷方式 `weditor --shortcut`，如果使用的是Conda、PyCharm venv等虚拟环境，则快捷方式无效
 
-  命令行直接输入 `weditor` 会自动打开浏览器，输入设备的ip或者序列号，点击Connect即可。
+  命令行直接输入 `weditor` 会自动打开浏览器，输入设备的ip或者序列号，点击Connect即可开始使用。
 
+  使用说明见[weditor.md](weditor.md)
+  
   >  参考文章：[浅谈自动化测试工具python-uiautomator2](https://testerhome.com/topics/11357)
 
 
 
 ## 三、使用方法详解
 
-> UiAutomator2可搭配使用Python unittest单元测试框架使用，使用方法可参考[unittest --- 单元测试框架 — Python 3.11.1 文档](https://docs.python.org/zh-cn/3/library/unittest.html)
+> UiAutomator2可搭配Python unittest单元测试框架使用，使用方法参考[unittest --- 单元测试框架 — Python 3.11.1 文档](https://docs.python.org/zh-cn/3/library/unittest.html)
 
 
 
@@ -146,7 +148,8 @@ screenOn': True, 'sdkInt': 27, 'naturalOrientation': True}
    # + Python: u2.connect_usb("10.0.0.1:5555")
    ```
    > 若不添加参数地调用u2.connect()，UiAutomator2会尝试从环境变量`ANDROID_DEVICE_IP` 或 `ANDROID_SERIAL` 中获取设备序列号。
-   > If this environment variable is empty, uiautomator will fall back to `connect_usb` and you need to make sure that there is only one device connected to the computer.
+   >
+   > 如果环境变量为空，UiAutomator2会退回到使用`connect_usb`方法来尝试连接，此时需确保仅有一台被控设备连接到此电脑。可通过`adb devices`检查已连接的设备
 
 
 
@@ -175,7 +178,7 @@ screenOn': True, 'sdkInt': 27, 'naturalOrientation': True}
 
 #### 支持的选择器
 
-ui2支持 android 中 UiSelector 类中的所有定位方式，详细可以在这个网址查看https://developer.android.com/reference/android/support/test/uiautomator/UiSelector
+ui2支持 android 中 UiSelector 类中的所有定位方式，详细可以在这个网址查看：https://developer.android.com/reference/android/support/test/uiautomator/UiSelector
 
 整体内容如下,所有的属性可以通过weditor查看到。
 
@@ -242,8 +245,7 @@ ui2支持 android 中 UiSelector 类中的所有定位方式，详细可以在�
 d(className="android.widget.ListView").child(text="Bluetooth")
 ```
 
-> `child_by_description` is to find children whose grandchildren have
-> the specified description, other parameters being similar to `child_by_text`.
+> `child_by_description` 用于找到具有特定description的子元素, 其他参数与`child_by_text`相同.
 
 > `child_by_instance` is to find children with has a child UI element anywhere
 > within its sub hierarchy that is at the instance specified. It is performed
@@ -256,7 +258,7 @@ d(className="android.widget.ListView").child(text="Bluetooth")
 `d(上述列表中的属性=字符串值).sibling()`
 
 ```python
-#查找与google同一级别，类名为android.widget.ImageView的元素
+# 查找与text属性为“Google”的同一级别、类名为android.widget.ImageView的元素
 d(text="Google").sibling(className="android.widget.ImageView")
 ```
 
@@ -310,23 +312,23 @@ d(text="Add new", instance=0)  # which means the first instance with text "Add n
 此外，uiautomator2提供了一个类似列表的API（类似于jQuery）：
 
 ```python
-# get the count of views with text "Add new" on current screen
+# 获取当前屏幕上text属性为“Add new”的元素的数量
 d(text="Add new").count
 
-# same as count property
+# 同上
 len(d(text="Add new"))
 
-# get the instance via index
+# 通过索引获取instance
 d(text="Add new")[0]
 d(text="Add new")[1]
 ...
 
-# iterator
+# 迭代器（iterator）
 for view in d(text="Add new"):
     view.info
 ```
 
->  **Notes**: when using selectors in a code block that walk through the result list, you must ensure that the UI elements on the screen keep unchanged. Otherwise, when Element-Not-Found error could occur when iterating through the list.
+>  **注**: 在结果列表中游走查找时必须保持屏幕显示不变，否则会产生“找不到元素”的错误。（When using selectors in a code block that walk through the result list, you must ensure that the UI elements on the screen keep unchanged. Otherwise, when Element-Not-Found error could occur when iterating through the list.）
 
 
 
@@ -336,7 +338,7 @@ Java uiautoamtor中默认是不支持xpath的，所以这里属于扩展的一�
 
 详情见[XPATH.md](XPATH.md)
 
-For example: 其中一个节点的内容
+例: 其中一个节点（Android控件）的内容为：
 
 ```xml
 <android.widget.TextView
@@ -352,7 +354,7 @@ For example: 其中一个节点的内容
 
 xpath定位和使用方法
 
-> *有些属性的名字有修改需要注意
+> 有些属性的名字有修改需要注意
 
 ```
 description -> content-desc
@@ -489,7 +491,7 @@ d(text="Settings").wait_gone(timeout=1.0)
 
 
 
-**滚动**
+**滚动（待详细）**
 
 Possible properties:
 
@@ -520,7 +522,7 @@ d.press("home")  # 按”主页“键
 d.press(0x07, 0x02)  # press keycode 0x07('0') with META ALT(0x02)
 ```
 
-> 按键定义参见：[Android KeyEvnet](https://developer.android.com/reference/android/view/KeyEvent.html)
+> 按键定义参见：[Android KeyEvnet(需科学上网)](https://developer.android.com/reference/android/view/KeyEvent.html)
 
 目前可用的参数列表：
 
@@ -582,29 +584,40 @@ d.screen_off() # turn off the screen
 #### 锁定/解锁
 
 ```python
-x d.unlock()
-# This is equivalent to
-# 1. launch activity: com.github.uiautomator.ACTION_IDENTIFY
-# 2. press the "home" key
+d.unlock()
 ```
 
-
+> unlock()与如下行为相同
+> 1. 启动activity: com.github.uiautomator.ACTION_IDENTIFY
+> 2. 按下 "home" 键
 
 #### 获取屏幕状态
 
+`d.info`返回一个字典
+
 ```python
 d.info.get('screenOn')
+d.info['screenOn']
 ```
 
 > 仅在Android >= 4.4版本上支持
 
 
 
-#### 屏幕旋转
+#### 屏幕旋转  
 
-设置旋转方向：
+获取当前旋转方向：  
 
-The possible orientations:
+| 方法                          | 返回类型 | 返回值       |
+| ----------------------------- | -------- | ------------ |
+| `orientation = d.orientation` | 字符串   | "natural"    |
+|                               |          | "left"       |
+|                               |          | "right"      |
+|                               |          | "upsidedown" |
+
+设置旋转方向，设置时会自动关闭自动旋转：
+
+可用的方向参数:
 
 -   `natural` or `n`
 -   `left` or `l`
@@ -612,26 +625,20 @@ The possible orientations:
 -   `upsidedown` or `u` (can not be set)
 
 ```python
-# retrieve orientation. the output could be "natural" or "left" or "right" or "upsidedown"
-orientation = d.orientation
-
-# WARNING: not pass testing in my TT-M1
-# set orientation and freeze rotation.
-# notes: setting "upsidedown" requires Android>=4.3.
 d.set_orientation('l') # or "left"
 d.set_orientation("l") # or "left"
 d.set_orientation("r") # or "right"
 d.set_orientation("n") # or "natural"
 ```
 
+> 注："upsidedown" 仅支持 Android >= 4.3
 
-
-控制自动旋转：
+单独控制自动旋转：
 
 ```python
-# freeze rotation
+# 关闭自动旋转
 d.freeze_rotation()
-# un-freeze rotation
+# 打开自动旋转
 d.freeze_rotation(False)
 ```
 
