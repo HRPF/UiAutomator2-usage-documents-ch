@@ -520,9 +520,9 @@ d.press("home")  # 按”主页“键
 d.press(0x07, 0x02)  # press keycode 0x07('0') with META ALT(0x02)
 ```
 
-> 按键定义参见：[Android KeyEvnet](https://developer.android.com/reference/android/view/KeyEvent.html)
+> 按键定义参见：[Android KeyEvnet(可能需要魔法上网)](https://developer.android.com/reference/android/view/KeyEvent.html)
 
-目前可用的参数列表：
+#### 目前可用的参数列表
 
 - home
 
@@ -562,11 +562,143 @@ d.press(0x07, 0x02)  # press keycode 0x07('0') with META ALT(0x02)
 
 - power
 
+
+
 ### 3.8 Watcher
+
+> 顾名思义，watcher是一个观察者，它可以一直检测设备页面中的变化，比如某个文本/描述/类名等的**出现**或者**改变**，然后进行下一步的点击/按钮操作，通常用于关闭无法预测的弹窗。
+
+#### 注册watcher
+
+注册一个**名字为**“WATCHER_NAME”的watcher，**当存在**UiSelector满足“text='确认'”的时候，**执行**点击操作
+
+```python
+d.watcher("WATCHER_NAME").when(text="确认").click(text="确认")
+# Same as
+d.watcher("ALERT").when(text="OK").click()
+```
+
+注册完watcher后它并没有运行，没有任何效果。
+
+例子：
+
+```python
+# 常用写法，注册匿名监控
+d.watcher.when("安装").click()
+```
+```python
+# 注册名为ANR的监控，当出现ANR和Force Close时，点击Force Close
+d.watcher("ANR").when(xpath="ANR").when("Force Close").click()
+```
+```python
+# 其他回调例子
+d.watcher.when("抢红包").press("back")
+d.watcher.when("//*[@text = 'Out of memory']").call(lambda d: d.shell('am force-stop com.im.qq'))
+```
+```python
+# 回调说明
+def click_callback(d: u2.Device):
+    d.xpath("确定").click() # 在回调中调用不会再次触发watcher
+```
+```python
+d.xpath("继续").click() # 使用d.xpath检查元素的时候，会触发watcher（目前最多触发5次）
+```
+
+
+
+#### 启动watcher
+
+| 方法              | 参数                  | 示例                    | 备注                |
+| ----------------- | --------------------- | ----------------------- | ------------------- |
+| d.watcher.start() | interval: float = 2.0 | `d.watcher.start(2.0) ` | 默认监控间隔2.0s    |
+| d.watcher.run()   |                       |                         | 强制启动所有watcher |
+
+所有watcher将被开启，并**一直运行在手机后台**，在你不想使用它的时候，需要使用*d.watchers.watched = False*手动关闭；当然，也可以使用**remove**方法移除某个watcher，如此它便不会再生效
+
+> watcher的实现原理：目前采用了后台运行了一个线程的方法(依赖threading库），然后每隔一段时间dump一次hierarchy，匹配到元素之后执行相应的操作。
+
+
+
+#### 移除watcher
+
+| 方法               | 参数      | 示例                    | 备注                 |
+| ------------------ | --------- | ----------------------- | -------------------- |
+| d.watcher.remove() | name: str | d.watcher.remove("ANR") | 移除名为ANR的watcher |
+|                    | None      | d.watcher.remove()      | 移除所有watcher      |
+| d.watcher.stop()   | 无        |                         | 停止监控             |
+| d.watcher.reset()  | 无        |                         | 停止并移除所有监控   |
+
+
 
 ### 3.9 执行Shell命令
 
+#### 执行阻塞命令
+
+| 方法      | 返回值                                | 参数                           | 示例                        | 备注                              |
+| --------- | ------------------------------------- | ------------------------------ | --------------------------- | --------------------------------- |
+| d.shell() | output, exit_code<br />输出, 返回代码 | cmdargs: Union[str, List[str]] | d.shell("pwd")              | 命令行，可以是字符串或字符串数组  |
+|           |                                       | stream: bool = False           | d.shell("pwd", stream=True) | 输入输出流的形式输出，缺省值False |
+|           |                                       | timeout: int = 60              | d.shell("pwd", timeout=60)  | 超时，缺省值60s                   |
+
+> Note: timeout support require `atx-agent >=0.3.3`
+
+例子：
+
+```python
+output, exit_code = d.shell("pwd", timeout=60) # timeout 60s (Default)
+# output: "/\n", exit_code: 0
+# Similar to command: adb shell pwd
+
+# Since `shell` function return type is `namedtuple("ShellResponse", ("output", "exit_code"))`
+# so we can do some tricks
+output = d.shell("pwd").output
+exit_code = d.shell("pwd").exit_code
+```
+
+The first argument can be list. for example
+
+```python
+output, exit_code = d.shell(["ls", "-l"])
+# output: "/....", exit_code: 0
+```
+
+> 此函数返回stdout与stderr合并的字符串。
+> 如果命令是阻塞命令，`shell`也会阻塞直到命令完成或超时生效。在执行命令期间不会接收到部分输出。这个API不适合长时间运行的命令。给出的shell命令在类似于`adb shell`的环境中运行，其Linux权限级别为`adb`或`shell`(高于应用程序权限)。
+
+
+
+#### 执行非阻塞命令
+
+添加参数 stream=True 会返回 `requests.models.Response` 对象. 更多详情： [Requests stream](http://docs.python-requests.org/zh_CN/latest/user/quickstart.html#id5)
+
+```python
+r = d.shell("logcat", stream=True)
+deadline = time.time() + 10 # run maxium 10s
+try:
+    for line in r.iter_lines(): # r.iter_lines(chunk_size=512, decode_unicode=None, delimiter=None)
+        if time.time() > deadline:
+            break
+        print("Read:", line.decode('utf-8'))
+finally:
+    r.close() # this method must be called
+```
+
+要结束命令，使用 `r.close()` .
+
+
+
 ### 3.10 获取设备信息
+
+| 方法            | 返回类型: 返回值                                             |
+| --------------- | ------------------------------------------------------------ |
+| d.info          | dict: 包名、屏幕分辨率、屏幕旋转、屏幕状态、制造商、SDK版本等 |
+| d.device_info   | dict: 设备信息、SDK、分辨率、电池、内存、存储、CPU等         |
+| d.window_size   | tuple: 屏幕分辨率                                            |
+| d.wlan_ip       | str: IP地址                                                  |
+| d.app_current() | dict: 前台应用信息                                           |
+| d.serial        | str: 设备序列号                                              |
+
+
 
 ### 3.11 控制屏幕
 
@@ -641,13 +773,233 @@ d.freeze_rotation(False)
 
 ### 3.12 应用管理
 
+#### 安装
+
+> 仅支持从URL链接安装apk
+
+```python
+d.app_install('http://some-domain.com/some.apk')
+```
+
+#### 启动应用
+
+```python
+# 默认的这种方法是先通过atx-agent解析apk包的mainActivity，然后调用am start -n $package/$activity启动
+d.app_start("com.example.hello_world")
+
+# 使用 monkey -p com.example.hello_world -c android.intent.category.LAUNCHER 1 启动
+# 这种方法有个副作用，它自动会将手机的旋转锁定给关掉
+d.app_start("com.example.hello_world", use_monkey=True) # start with package name
+
+# 通过指定main activity的方式启动应用，等价于调用am start -n com.example.hello_world/.MainActivity
+d.app_start("com.example.hello_world", ".MainActivity")
+```
+
+#### 停止应用
+
+```python
+# equivalent to `am force-stop`, thus you could lose data
+d.app_stop("com.example.hello_world") 
+# equivalent to `pm clear`
+d.app_clear('com.example.hello_world')
+```
+
+#### 停止所有应用
+
+```python
+# stop all
+d.app_stop_all()
+# stop all app except for com.examples.demo
+d.app_stop_all(excludes=['com.examples.demo'])
+```
+
+#### 获取应用信息
+
+```python
+d.app_info("com.examples.demo")
+# expect output
+#{
+#    "mainActivity": "com.github.uiautomator.MainActivity",
+#    "label": "ATX",
+#    "versionName": "1.1.7",
+#    "versionCode": 1001007,
+#    "size":1760809
+#}
+
+# save app icon
+img = d.app_icon("com.examples.demo")
+img.save("icon.png")
+```
+
+#### 列出所有正在运行的应用
+
+```python
+d.app_list_running()
+# expect output
+# ["com.xxxx.xxxx", "com.github.uiautomator", "xxxx"]
+```
+
+#### 等待应用启动
+
+```python
+pid = d.app_wait("com.example.android") # 等待应用运行, return pid(int)
+if not pid:
+    print("com.example.android is not running")
+else:
+    print("com.example.android pid is %d" % pid)
+
+d.app_wait("com.example.android", front=True) # 等待应用前台运行
+d.app_wait("com.example.android", timeout=20.0) # 最长等待时间20s（默认）
+```
+
+> Added in version 1.2.0
+
+
+
+#### 检查并维持设备端守护进程处于运行状态
+
+```python
+d.healthcheck()
+```
+
+
+
+#### Open Scheme
+
+You can do it wire adb: `adb shell am start -a android.intent.action.VIEW -d "appname://appnamehost"`
+
+Also you can do it with python code
+
+```python
+d.open_url("https://www.baidu.com")
+d.open_url("taobao://taobao.com") # open Taobao app
+d.open_url("appname://appnamehost")
+```
+
+
+
 ### 3.13 杂项
 
 #### 屏幕截图
 
+adb提供的命令：
+
+```bash
+adb shell screencap /sdcard/screenshot.png
+```
+
+UiAutomator2提供的接口：
+
+
+```python
+# take screenshot and save to a file on the computer, require Android>=4.2.
+d.screenshot("home.jpg")
+
+# get PIL.Image formatted images. Naturally, you need pillow installed first
+image = d.screenshot() # default format="pillow"
+image.save("home.jpg") # or home.png. Currently, only png and jpg are supported
+
+# get opencv formatted images. Naturally, you need numpy and cv2 installed first
+import cv2
+image = d.screenshot(format='opencv')
+cv2.imwrite('home.jpg', image)
+
+# get raw jpeg data
+imagebin = d.screenshot(format='raw')
+open("some.jpg", "wb").write(imagebin)
+```
+
+
+
 #### 屏幕录制
 
-#### 获取Toast
+adb提供的命令：
+
+```bash
+adb shell screenrecord /sdcard/screenrecore.mp4
+```
+
+U2没有使用上述screenrecord命令，是通过获取手机图片合成视频的方法，所以需要安装一些其他的依赖，如imageio, imageio-ffmpeg, numpy等
+因为有些依赖比较大，推荐使用镜像安装。直接运行下面的命令即可。
+
+```bash
+pip3 install -U "uiautomator2[image]" -i https://pypi.doubanio.com/simple
+```
+
+使用方法
+
+```python
+d.screenrecord('output.mp4')
+
+time.sleep(10)
+# or do something else
+
+d.screenrecord.stop() # 停止录制后，output.mp4文件才能打开
+```
+
+录制的时候也可以指定fps（当前是20），这个值是略低于minicap输出图片的速度，感觉已经很好了，不建议你修改。
+
+
+
+#### Toast
+
+Show Toast
+
+```python
+d.toast.show("Hello world")
+d.toast.show("Hello world", 1.0) # show for 1.0s, default 1.0s
+```
+
+Get Toast
+
+```python
+# [Args]
+# 5.0: max wait timeout. Default 10.0
+# 10.0: cache time. return cache toast if already toast already show up in recent 10 seconds. Default 10.0 (Maybe change in the furture)
+# "default message": return if no toast finally get. Default None
+d.toast.get_message(5.0, 10.0, "default message")
+
+# common usage
+assert "Short message" in d.toast.get_message(5.0, default="")
+
+# clear cached toast
+d.toast.reset()
+# Now d.toast.get_message(0) is None
+```
+
+
 
 #### 获取UI hierarchy
 
+```python
+xml = d.dump_hierarchy() # get the UI hierarchy dump content (unicoded).
+```
+
+
+
+#### 文件存取
+
+Push a file to the device
+
+```python
+# push to a folder
+d.push("foo.txt", "/sdcard/")
+# push and rename
+d.push("foo.txt", "/sdcard/bar.txt")
+# push fileobj
+with open("foo.txt", 'rb') as f:
+    d.push(f, "/sdcard/")
+# push and change file access mode
+d.push("foo.sh", "/data/local/tmp/", mode=0o755)
+```
+
+Pull a file from the device
+
+```python
+d.pull("/sdcard/tmp.txt", "tmp.txt")
+
+# FileNotFoundError will raise if the file is not found on the device
+d.pull("/sdcard/some-file-not-exists.txt", "tmp.txt")
+```
+
+#### 
